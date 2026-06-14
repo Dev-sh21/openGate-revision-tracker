@@ -1,0 +1,145 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+// NextAuth Models
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model User {
+  id            String    @id @default(cuid())
+  name          String?
+  email         String?   @unique
+  emailVerified DateTime?
+  image         String?
+  passwordHash  String?   // For email/password credential login
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  accounts      Account[]
+  sessions      Session[]
+  subjects      Subject[]
+  topics        Topic[]
+  
+  // Integration Tokens & Settings
+  notionAccessToken String? @db.Text
+  notionDatabaseId  String?
+  googleSheetsId    String? // ID of the spreadsheet created
+  timezone          String  @default("UTC")
+  
+  // Preferences
+  reminderOffsetMinutes   Int     @default(0) // 0 = at time, 60 = 1h before, 1440 = 1 day before
+  emailRemindersEnabled   Boolean @default(true)
+  browserRemindersEnabled Boolean @default(true)
+  dailyReminderTime       String  @default("08:00") // Local 24h format
+}
+
+model VerificationToken {
+  id         String   @id @default(cuid())
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+// Spaced Repetition Models
+model Subject {
+  id        String   @id @default(cuid())
+  name      String
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  topics    Topic[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([name, userId])
+}
+
+model Topic {
+  id                  String             @id @default(cuid())
+  name                String
+  subjectId           String
+  subject             Subject            @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+  userId              String
+  user                User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  studyDate           DateTime
+  stage               Int                @default(0) // 0 = Study Day, 1 = Rev 1, 2 = Rev 2, 3 = Rev 3, 4 = Rev 4, 5 = Mastered
+  status              TopicStatus        @default(PENDING) // PENDING, DUE_TODAY, COMPLETED, MASTERED
+  createdAt           DateTime           @default(now())
+  updatedAt           DateTime           @updatedAt
+  
+  revisions           RevisionSchedule[]
+  completionHistory   CompletionHistory[]
+  
+  // Integration Identifiers
+  notionPageId        String?            @unique
+  googleCalendarEventIds Json?           // Maps revision number to event ID: { "1": "event1", "2": "event2", ... }
+}
+
+enum TopicStatus {
+  PENDING
+  DUE_TODAY
+  COMPLETED
+  MASTERED
+}
+
+model RevisionSchedule {
+  id             String         @id @default(cuid())
+  topicId        String
+  topic          Topic          @relation(fields: [topicId], references: [id], onDelete: Cascade)
+  revisionNumber Int            // 1, 2, 3, 4
+  scheduledDate  DateTime
+  completedDate  DateTime?
+  status         RevisionStatus @default(PENDING) // PENDING, COMPLETED, SKIPPED, OVERDUE
+  googleEventId  String?
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+
+  @@unique([topicId, revisionNumber])
+}
+
+enum RevisionStatus {
+  PENDING
+  COMPLETED
+  SKIPPED
+  OVERDUE
+}
+
+model CompletionHistory {
+  id             String         @id @default(cuid())
+  topicId        String
+  topic          Topic          @relation(fields: [topicId], references: [id], onDelete: Cascade)
+  revisionNumber Int
+  status         RevisionStatus // COMPLETED or SKIPPED
+  completedAt    DateTime       @default(now())
+}
