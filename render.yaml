@@ -6,6 +6,9 @@ services:
     buildCommand: npx prisma generate && npm run build
     startCommand: npx prisma migrate deploy && npm run start
     envVars:
+      # Use Node.js 20 to avoid build crashes on old versions
+      - key: NODE_VERSION
+        value: 20.20.1
       # Database connection string mapped automatically from the database service below
       - key: DATABASE_URL
         fromDatabase:
@@ -16,20 +19,21 @@ services:
         generateValue: true
       - key: CRON_SECRET
         generateValue: true
-      # You will paste your live Render URL here once deployed (e.g., https://revision-tracker-xxxx.onrender.com)
+      # Fallback values to let the build pass immediately without prompts
+      # (Change these in the Render dashboard to your actual live .onrender.com URL later)
       - key: NEXTAUTH_URL
-        sync: false
+        value: https://revision-tracker.onrender.com
       - key: NEXT_PUBLIC_APP_URL
-        sync: false
-      # Optional OAuth keys (Render will prompt you for these, you can leave them blank if not using integrations)
+        value: https://revision-tracker.onrender.com
+      # Optional OAuth keys (Empty by default so they don't block deployment)
       - key: GOOGLE_CLIENT_ID
-        sync: false
+        value: ""
       - key: GOOGLE_CLIENT_SECRET
-        sync: false
+        value: ""
       - key: NOTION_CLIENT_ID
-        sync: false
+        value: ""
       - key: NOTION_CLIENT_SECRET
-        sync: false
+        value: ""
 
 databases:
   - name: revision-tracker-db
