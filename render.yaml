@@ -1,0 +1,37 @@
+services:
+  - type: web
+    name: revision-tracker
+    runtime: node
+    plan: free
+    buildCommand: npx prisma generate && npm run build
+    startCommand: npx prisma migrate deploy && npm run start
+    envVars:
+      # Database connection string mapped automatically from the database service below
+      - key: DATABASE_URL
+        fromDatabase:
+          name: revision-tracker-db
+          property: connectionString
+      # Render will automatically generate a secure secret key for NextAuth and Cron
+      - key: NEXTAUTH_SECRET
+        generateValue: true
+      - key: CRON_SECRET
+        generateValue: true
+      # You will paste your live Render URL here once deployed (e.g., https://revision-tracker-xxxx.onrender.com)
+      - key: NEXTAUTH_URL
+        sync: false
+      - key: NEXT_PUBLIC_APP_URL
+        sync: false
+      # Optional OAuth keys (Render will prompt you for these, you can leave them blank if not using integrations)
+      - key: GOOGLE_CLIENT_ID
+        sync: false
+      - key: GOOGLE_CLIENT_SECRET
+        sync: false
+      - key: NOTION_CLIENT_ID
+        sync: false
+      - key: NOTION_CLIENT_SECRET
+        sync: false
+
+databases:
+  - name: revision-tracker-db
+    plan: free
+    postgresMajorVersion: "15"
